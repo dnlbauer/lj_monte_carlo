@@ -24,8 +24,8 @@ macro_rules! println_stderr(
 fn main() {
 
     // define all the stuff
-    let sample_steps = 1000000;
-    let minim_steps = 1000000;
+    let minim_steps  = 1000000;
+    let sample_steps = 100000;
 
     let num_particles: usize = 512;
     let density = 0.7;
@@ -45,9 +45,8 @@ fn main() {
     // initialize stuff
     let beta = 1.0/temperature;
     let volume = (num_particles as f64)/ density;
-    let l_x  = volume.cbrt();
-    let l_y = l_x;
-    let l_z = l_x;
+    let length  = volume.cbrt();
+    let (l_x, l_y, l_z) = (length, length, length);
     let cutoff_squared = cutoff * cutoff;
 
     let mut rng = rand::thread_rng();
@@ -67,7 +66,7 @@ fn main() {
     let p_corr = if TAILCORR { 16.0/3.0*std::f64::consts::PI*density.powi(2)*LJ_EPS*LJ_SIG.powi(3)*((2.0/3.0*(LJ_SIG/cutoff).powi(9)) - (LJ_SIG/cutoff).powi(3)) } else { 0.0 };
 
     println_stderr!("Particles: {}, Density: {}, Temperature: {}", num_particles, density, temperature);
-    println_stderr!("System volume: {:8.3}, Dimensions {:.3}/{:.3}/{:.3}", volume, l_x, l_y, l_z,);
+    println_stderr!("System volume: {:8.3}, Dimensions {:.3}/{:.3}/{:.3}", volume, l_x, l_y, l_z);
     println_stderr!("Minimization steps: {}, Sampling steps: {}", minim_steps, sample_steps);
     println_stderr!("LJ params eps: {}, sigma: {}, cutoff: {}", LJ_EPS, LJ_SIG, cutoff);
     println_stderr!("Tailcorr: {:8.3}, Shift: {:8.3}, Pressurecprr: {:8.3}", e_corr, SHIFT, p_corr);
@@ -135,7 +134,7 @@ fn main() {
         virial_sum += virial;
 
 
-        if step_counter % 5000 == 0 && step < minim_steps {
+        if step_counter % 5000 == 0 {
             println!("Minim {}\tEnergy: {:.3}\tVirial: {:.3}\tAcceptance:{:.1}\tDisplacement: {:.3}", step_counter, energy, virial, 666, displacement);
         }
 
@@ -152,7 +151,7 @@ fn main() {
 
     let final_energy = energy_sum/step_counter as f64;
     let particle_energy = final_energy / num_particles as f64;
-    let final_virial = virial_sum / 3.0 /  step_counter as f64 / num_particles as f64 / volume;
+    let final_virial = virial_sum / 3.0 / step_counter as f64 / volume;
     let pressure = virial_sum / 3.0 / step_counter as f64 / volume + density * temperature + p_corr;
     println!("Steps: {}", step_counter );
     println!("Avg Energy: {:.3}", final_energy);

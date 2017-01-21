@@ -44,11 +44,11 @@ fn get_particle_distance_squared(x1: f64,y1: f64,z1: f64,x2: f64,y2: f64,z2: f64
     let mut dz = z1 - z2;
 
     if dx > hl_x { dx -= l_x }
-        else if dx < -hl_x{ dx += -l_x}
-    if dy > hl_y { dy -= l_y }
-        else if dy < -hl_y{ dy += -l_y}
-    if dz > hl_z { dz -= l_z }
-        else if dz < -hl_z{ dz += -l_z}
+        else if dx < -hl_x { dx += l_x }
+    if dy > hl_y { dy -= l_y}
+        else if dy < -hl_y{ dy += l_y }
+    if dz > hl_z { dz -= l_y }
+        else if dz < -hl_z { dz += l_z}
 
     return dx*dx + dy*dy + dz*dz;
 }
@@ -59,12 +59,10 @@ fn test_get_particle_distance_squared() {
     let (x2, y2, z2) = (5.0, 0.0, 0.0);
 
     // no pbc
-    let dist = get_particle_distance_squared(x1,y1,y1,y2,z2,z2, 20.0, 20.0, 20.0, 10.0, 10.0, 10.0);
-    assert!( (dist - 25.0) < 0.00001, "{}", dist);
+    assert!( (get_particle_distance_squared(x1,y1,z1,x2,y2,z2, 20.0, 20.0, 20.0, 10.0, 10.0, 10.0) - 25.0) < 0.00001);
 
     // with pbc
-    let dist = get_particle_distance_squared(x1,y1,y1,y2,z1,z2, 9.0, 9.0, 9.0, 4.5, 4.5, 4.5);
-    assert!( (dist - 16.0) < 0.00001, "{}", dist);
+    assert!( (get_particle_distance_squared(x1,y1,z1,x2,y2,z2, 9.0,9.0,9.0, 4.5,4.5,4.5) - 16.0) < 0.00001, "{}", get_particle_distance_squared(x1,y1,z1,x2,y2,z2, 9.0,9.0,9.0, 4.5,4.5,4.5));
 }
 
 fn eval_pair_energy(dist_squared: f64) -> (f64, f64) {
