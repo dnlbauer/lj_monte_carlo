@@ -7,7 +7,10 @@ mod energy;
 use energy::*;
 use std::io::prelude::*;
 extern crate argparse;
-use argparse::{ArgumentParser, Store, StoreFalse};
+use argparse::{ArgumentParser, Store, StoreFalse, StoreTrue};
+mod trajectory;
+use trajectory::*;
+
 
 const LJ_EPS : f64 = 1.0;
 const LJ_SIG : f64 = 1.0;
@@ -24,7 +27,10 @@ macro_rules! println_stderr(
     } }
 );
 
-fn parse_cmd_args(NUM_STEPS: &mut usize, NUM_MINIM_STEPS: &mut usize, NUM_PARTICLES: &mut usize, DENSITY: &mut f64, TEMPERATURE: &mut f64, CUTOFF: &mut f64, MAX_DISP_START: &mut f64, SCALE: &mut bool, TAILCORR: &mut bool, SHIFT: &mut bool) {
+fn parse_cmd_args(NUM_STEPS: &mut usize, NUM_MINIM_STEPS: &mut usize,
+                  NUM_PARTICLES: &mut usize, DENSITY: &mut f64, TEMPERATURE: &mut f64,
+                  CUTOFF: &mut f64, MAX_DISP_START: &mut f64, SCALE: &mut bool, TAILCORR: &mut bool, SHIFT: &mut bool,
+                  OUTPUT_PREFIX: &mut String, OUTPUT_INTERVAL: &mut i64, OUTPUT_MINIM: &mut bool) {
     let mut ap = ArgumentParser::new();
     ap.set_description("LJ MC simulation.");
     ap.refer(NUM_STEPS)
@@ -51,9 +57,15 @@ fn parse_cmd_args(NUM_STEPS: &mut usize, NUM_MINIM_STEPS: &mut usize, NUM_PARTIC
     ap.refer(SCALE)
         .add_option(&["--nodisplacementscale"], StoreFalse,
                     "Disable displacement scaling");
-//    ap.refer(TRAJECTORY_STEPSIZE)
-//        .add_option(&["--trj_steps"], Store,
-//                    "Number of steps between writing to the trajectory file");
+    ap.refer(OUTPUT_PREFIX)
+        .add_option(&["-o", "--output"], Store,
+                    "Output file prefix");
+    ap.refer(OUTPUT_INTERVAL)
+        .add_option(&["--osteps"], Store,
+                    "Number of steps between writing to the trajectory file. -1 only writes last frame");
+    ap.refer(OUTPUT_MINIM)
+        .add_option(&["--writeminimization"], StoreTrue,
+                    "Enables writing of minimization step to trajectory");
 //    ap.refer(VACUUM_DIMENSION)
 //        .add_option(&["--vacuum"], Store,
 //                    "Dimension of vacuum space below and above the intial system.");
@@ -80,13 +92,16 @@ fn main() {
     let mut displacement = 0.1;
 
     let mut  TAILCORR : bool = true;
-    let mut SHIFT: bool = false;
+    let mut SHIFT: bool = true;
     let mut SCALE: bool = true;
+
+    let mut output_prefix = "montecarlo".to_string();
+    let mut output_interval : i64 = 100;
+    let mut output_minim : bool = false;
     parse_cmd_args(&mut sample_steps, &mut minim_steps, &mut num_particles,
                    &mut density, &mut temperature,
-                   &mut cutoff, &mut displacement, &mut SCALE, &mut TAILCORR, &mut SHIFT);
-
-
+                   &mut cutoff, &mut displacement, &mut SCALE, &mut TAILCORR, &mut SHIFT,
+                   &mut output_prefix, &mut output_interval, &mut output_minim);
 
     println_stderr!("");
     println_stderr!("################################################################");
@@ -116,6 +131,7 @@ fn main() {
         if rx.len() == num_particles { break; }
     }
 
+    let e_shift = if SHIFT { 4.0 * LJ_EPS * ( (LJ_SIG/cutoff).powi(12) - (LJ_SIG/cutoff).powi(6) ) } else { 0.0 };
     let e_corr = if TAILCORR { 8.0/3.0*std::f64::consts::PI*density*LJ_EPS*LJ_SIG.powi(3)*((1.0/3.0*(LJ_SIG/cutoff).powi(9)) - (LJ_SIG/cutoff).powi(3)) } else { 0.0 };
     let p_corr = if TAILCORR { 16.0/3.0*std::f64::consts::PI*density.powi(2)*LJ_EPS*LJ_SIG.powi(3)*((2.0/3.0*(LJ_SIG/cutoff).powi(9)) - (LJ_SIG/cutoff).powi(3)) } else { 0.0 };
 
@@ -123,9 +139,9 @@ fn main() {
     println_stderr!("System volume: {:8.3}, Dimensions {:.3}/{:.3}/{:.3}", volume, l_x, l_y, l_z);
     println_stderr!("Minimization steps: {}, Sampling steps: {}", minim_steps, sample_steps);
     println_stderr!("LJ params eps: {}, sigma: {}, cutoff: {}", LJ_EPS, LJ_SIG, cutoff);
-    println_stderr!("Tailcorr: {:8.3}, Shift: {:8.3}, Pressurecprr: {:8.3}", e_corr, SHIFT, p_corr);
+    println_stderr!("Tailcorr: {:8.3}, Shift: {:8.3}, Pressurecprr: {:8.3}", e_corr, e_shift, p_corr);
 
-    let (mut energy, mut virial) = get_total_energy(&rx, &ry, &rz, num_particles, l_x, l_y, l_z, cutoff_squared, e_corr);
+    let (mut energy, mut virial) = get_total_energy(&rx, &ry, &rz, num_particles, l_x, l_y, l_z, cutoff_squared, e_corr, e_shift);
     let mut energy_sum = 0.0;
     let mut virial_sum = 0.0;
     let mut step_counter = 0;
@@ -136,6 +152,10 @@ fn main() {
     println_stderr!("#####################  Energy Minimization  ####################");
     println_stderr!("################################################################");
     println_stderr!("");
+
+    // prepare and write first trajectory frame
+    let mut trajectory : XYZTrajectory = XYZTrajectory::new(&format!("{}.xyz", output_prefix));
+    if output_minim { trajectory.write(&rx, &ry, &rz, num_particles, l_x, l_y, l_z, temperature, LJ_EPS, LJ_SIG, cutoff, true); }
 
     for step in 0..minim_steps+sample_steps {
 
@@ -148,7 +168,7 @@ fn main() {
         let oldZ = rz[rnd_index];
 
         // old particle energy
-        let (old_particle_energy, old_particle_virial) = get_particle_energy(&rx, &ry, &rz, rnd_index, num_particles, l_x, l_y, l_z, cutoff_squared);
+        let (old_particle_energy, old_particle_virial) = get_particle_energy(&rx, &ry, &rz, rnd_index, num_particles, l_x, l_y, l_z, cutoff_squared, e_shift);
 
         // rnd displacement and PBC
         rx[rnd_index] += ( rng.gen::<f64>() - 0.5 ) * displacement;
@@ -162,14 +182,14 @@ fn main() {
         if rz[rnd_index] > l_z { rz[rnd_index] -= l_z }
 
         // calculate energy difference
-        let (new_particle_energy, new_particle_virial) = get_particle_energy(&rx, &ry, &rz, rnd_index, num_particles, l_x, l_y, l_z, cutoff_squared);
+        let (new_particle_energy, new_particle_virial) = get_particle_energy(&rx, &ry, &rz, rnd_index, num_particles, l_x, l_y, l_z, cutoff_squared, e_shift);
         let dE = new_particle_energy - old_particle_energy;
 
         //accept move
         if rng.gen::<f64>() < (-beta * dE).exp() {
             accept_counter += 1;
             if step % 1000 == 0 { // calculate total energy every 1000 steps to account for rounding errors
-                let (e, v) = get_total_energy(&rx, &ry, &rz, num_particles, l_x, l_y, l_z, cutoff_squared, e_corr);
+                let (e, v) = get_total_energy(&rx, &ry, &rz, num_particles, l_x, l_y, l_z, cutoff_squared, e_corr, e_shift);
                 energy = e;
                 virial = v;
             } else {
@@ -220,7 +240,13 @@ fn main() {
 
         if step > minim_steps && step_counter % 5000 == 0 {
             println_stderr!("Step  {:<10}Energy: {:<12.3}Virial: {:<12.3}", step_counter, energy, virial);
+        }
 
+        // write trajectory maybe
+        if step as i64 % output_interval == 0 {
+            if step > minim_steps || output_minim {
+                trajectory.write(&rx, &ry, &rz, num_particles, l_x, l_y, l_z, temperature, LJ_EPS, LJ_SIG, cutoff, true);
+            }
         }
 
     }
@@ -271,8 +297,8 @@ Pressure: {}",
          minim_steps, sample_steps,
         LJ_EPS, LJ_SIG, cutoff,
         num_particles, density, temperature, volume, l_x, l_y, l_z, displacement,
-        e_corr, SHIFT, p_corr,
+        e_corr, e_shift, p_corr,
         step_counter, accept_counter, final_acceptance_rate, final_energy, particle_energy, final_virial, pressure);
 
-
+    trajectory.write(&rx, &ry, &rz, num_particles, l_x, l_y, l_z, temperature, LJ_EPS, LJ_SIG, cutoff, true);
 }

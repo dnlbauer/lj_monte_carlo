@@ -1,5 +1,5 @@
 
-pub fn get_total_energy(rx: &[f64], ry: &[f64], rz: &[f64], num_particles: usize, l_x: f64, l_y: f64, l_z: f64, cutoff_squared: f64, e_corr: f64) -> (f64, f64) {
+pub fn get_total_energy(rx: &[f64], ry: &[f64], rz: &[f64], num_particles: usize, l_x: f64, l_y: f64, l_z: f64, cutoff_squared: f64, e_corr: f64, e_shift: f64) -> (f64, f64) {
     let mut energy = 0.0;
     let mut virial = 0.0;
     let hl_x = l_x / 2.0;
@@ -9,7 +9,7 @@ pub fn get_total_energy(rx: &[f64], ry: &[f64], rz: &[f64], num_particles: usize
         for j in i+1..num_particles-1 {
             let dist_squared = get_particle_distance_squared(rx[i], ry[i],rz[i],rx[j],ry[j],rz[j], l_x, l_y, l_z, hl_x, hl_y, hl_z);
             if dist_squared < cutoff_squared {
-                let (e,v) = eval_pair_energy(dist_squared);
+                let (e,v) = eval_pair_energy(dist_squared, e_shift);
                 energy += e;
                 virial += v;
             }
@@ -19,7 +19,7 @@ pub fn get_total_energy(rx: &[f64], ry: &[f64], rz: &[f64], num_particles: usize
     return (energy, virial);
 }
 
-pub fn get_particle_energy(rx: &[f64], ry: &[f64], rz: &[f64], p_index: usize, num_particles: usize, l_x: f64, l_y: f64, l_z: f64, cutoff_squared: f64) -> (f64, f64) {
+pub fn get_particle_energy(rx: &[f64], ry: &[f64], rz: &[f64], p_index: usize, num_particles: usize, l_x: f64, l_y: f64, l_z: f64, cutoff_squared: f64, e_shift: f64) -> (f64, f64) {
     let mut energy = 0.0;
     let mut virial = 0.0;
     let hl_x = l_x / 2.0;
@@ -30,7 +30,7 @@ pub fn get_particle_energy(rx: &[f64], ry: &[f64], rz: &[f64], p_index: usize, n
 
         let dist_squared = get_particle_distance_squared(rx[i], ry[i], rz[i], rx[p_index], ry[p_index], rz[p_index], l_x, l_y, l_z, hl_x, hl_y, hl_z);
         if dist_squared < cutoff_squared {
-            let (e,v) = eval_pair_energy(dist_squared);
+            let (e,v) = eval_pair_energy(dist_squared, e_shift);
             energy += e;
             virial += v;
         }
@@ -65,22 +65,22 @@ fn test_get_particle_distance_squared() {
     assert!( (get_particle_distance_squared(x1,y1,z1,x2,y2,z2, 9.0,9.0,9.0, 4.5,4.5,4.5) - 16.0) < 0.00001, "{}", get_particle_distance_squared(x1,y1,z1,x2,y2,z2, 9.0,9.0,9.0, 4.5,4.5,4.5));
 }
 
-fn eval_pair_energy(dist_squared: f64) -> (f64, f64) {
+fn eval_pair_energy(dist_squared: f64, e_shift: f64) -> (f64, f64) {
     let r6 = ::LJ_SIG/(dist_squared * dist_squared * dist_squared);
     let r62 = r6*r6;
-    let energy = 4.0 * ::LJ_EPS * (r62 - r6);
+    let energy = 4.0 * ::LJ_EPS * (r62 - r6) - e_shift;
     let virial = 48.0 * ::LJ_EPS * ( r62 - 0.5 * r6 );
     return (energy, virial);
 }
 
 #[test]
 fn test_eval_pair_energy() {
-    let (e,v) = eval_pair_energy(1.0);
+    let (e,v) = eval_pair_energy(1.0, 0.0);
     assert!( (e - 0.0).abs() < 0.00001, "{}",  e);
 
-    let (e,v) = eval_pair_energy(2.0);
+    let (e,v) = eval_pair_energy(2.0, 0.0);
     assert!( (e - -0.4375).abs() < 0.00001, "{}",  e);
 
-    let (e,v) = eval_pair_energy(0.5);
+    let (e,v) = eval_pair_energy(0.5, 0.0);
     assert!( (e - 224.0).abs() < 0.00001, "{}",  e);
 }
