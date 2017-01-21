@@ -13,6 +13,9 @@ const LJ_SIG : f64 = 1.0;
 const TAILCORR : bool = true;
 const SHIFT: bool = false;
 
+const TRIES_INTENDED : f64 = 3.0;
+const DISP_SCALE_FACTOR : f64 = 0.1;
+
 // easy printing to stderr
 macro_rules! println_stderr(
     ($($arg:tt)*) => { {
@@ -32,7 +35,7 @@ fn main() {
     let temperature = 0.9;
 
     let cutoff = 3.0;
-    let displacement = 0.1;
+    let mut displacement = 0.1;
 
 
     println_stderr!("");
@@ -48,6 +51,7 @@ fn main() {
     let length  = volume.cbrt();
     let (l_x, l_y, l_z) = (length, length, length);
     let cutoff_squared = cutoff * cutoff;
+    let max_displacement = length / 2.0;
 
     let mut rng = rand::thread_rng();
     let particle_range = Range::new(0, num_particles-1);
@@ -133,9 +137,18 @@ fn main() {
         energy_sum += energy;
         virial_sum += virial;
 
+        // print some output during minimization
+        if step < minim_steps && step_counter % 5000 == 0 && step != 0 {
+            let tries_per_step : f64 = step_counter as f64 /accept_counter as f64;
+            let acceptance_rate = 1.0/tries_per_step * 100.0;
+            println_stderr!("Minim {}\tEnergy: {:.3}\tVirial: {:.3}\tAcceptance:{:.1}%\tDisplacement: {:.3}", step_counter, energy, virial, acceptance_rate, displacement);
 
-        if step_counter % 5000 == 0 {
-            println!("{} {}\tEnergy: {:.3}\tVirial: {:.3}\tAcceptance:{:.1}\tDisplacement: {:.3}", if step < minim_steps {"Minim"} else {"Step"} ,step_counter, energy, virial, 666, displacement);
+            let mut scale_factor = (TRIES_INTENDED/tries_per_step * DISP_SCALE_FACTOR).abs();
+            if tries_per_step < TRIES_INTENDED - 0.2 && displacement < max_displacement {
+                displacement += displacement * scale_factor;
+            } else if tries_per_step > TRIES_INTENDED + 0.2 && displacement > 0.0 {
+                displacement -= displacement * scale_factor;
+            }
         }
 
         // reset sums for sampling
@@ -149,6 +162,11 @@ fn main() {
             accept_counter = 0;
             energy_sum = 0.0;
             virial_sum = 0.0;
+        }
+
+        if step > minim_steps && step_counter % 5000 == 0 {
+            println_stderr!("Step {}\tEnergy: {:.3}\tVirial: {:.3}\t", step_counter, energy, virial);
+
         }
 
     }
@@ -167,39 +185,36 @@ fn main() {
     println!("################################################################");
     println!("");
     println!(
-        "Minimization: {}
-        Steps: {}
+"Minimization: {}
+Steps: {}
 
-        # Lennard Jones Params
-        epsilon: {}
-        sigma: {}
-        cutoff: {}
+# Lennard Jones Params
+epsilon: {}
+sigma: {}
+cutoff: {}
 
-        # System
-        Particles: {}
-        Density: {}
-        Temperature: {}
-        Volume: {}
-        Box dimension: {:.3}/{:.3}/{:.3}
-        Max Displacement: {}
+# System
+Particles: {}
+Density: {}
+Temperature: {}
+Volume: {}
+Box dimension: {:.3}/{:.3}/{:.3}
+Max Displacement: {}
 
-        # Correction
-        Energy correction: {}
-        Shift: {}
-        P-Correction: {}
+# Correction
+Energy correction: {}
+Shift: {}
+P-Correction: {}
 
-        # Averages
-        Tries: {}
-        Accepted: {}
-        Acceptance: {:.2}%
-        Energy: {}
-        Energy per particle: {}
-        Virial: {}
-        Pressure: {}
-
-    ",
-
-        minim_steps, sample_steps,
+# Averages
+Tries: {}
+Accepted: {}
+Acceptance: {:.2}%
+Energy: {}
+Energy per particle: {}
+Virial: {}
+Pressure: {}",
+         minim_steps, sample_steps,
         LJ_EPS, LJ_SIG, cutoff,
         num_particles, density, temperature, volume, l_x, l_y, l_z, displacement,
         e_corr, SHIFT, p_corr,
@@ -207,6 +222,3 @@ fn main() {
 
 
 }
-
-
-
