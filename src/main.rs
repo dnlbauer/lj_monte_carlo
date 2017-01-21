@@ -6,12 +6,12 @@ use rand::distributions::{IndependentSample, Range};
 mod energy;
 use energy::*;
 use std::io::prelude::*;
+extern crate argparse;
+use argparse::{ArgumentParser, Store, StoreFalse};
 
 const LJ_EPS : f64 = 1.0;
 const LJ_SIG : f64 = 1.0;
 
-const TAILCORR : bool = true;
-const SHIFT: bool = false;
 
 const TRIES_INTENDED : f64 = 3.0;
 const DISP_SCALE_FACTOR : f64 = 0.1;
@@ -24,18 +24,68 @@ macro_rules! println_stderr(
     } }
 );
 
+fn parse_cmd_args(NUM_STEPS: &mut usize, NUM_MINIM_STEPS: &mut usize, NUM_PARTICLES: &mut usize, DENSITY: &mut f64, TEMPERATURE: &mut f64, CUTOFF: &mut f64, MAX_DISP_START: &mut f64, SCALE: &mut bool, TAILCORR: &mut bool, SHIFT: &mut bool) {
+    let mut ap = ArgumentParser::new();
+    ap.set_description("LJ MC simulation.");
+    ap.refer(NUM_STEPS)
+        .add_option(&["-n", "--nsteps"], Store,
+                    "Simulation steps: Number of steps for averaging" );
+    ap.refer(NUM_MINIM_STEPS)
+        .add_option(&["-m", "--nminimsteps"], Store,
+                    "Minimization steps: Number of steps before averaging starts");
+    ap.refer(NUM_PARTICLES)
+        .add_option(&["-p", "--nparticles"], Store,
+                    "Total number of particles");
+    ap.refer(DENSITY)
+        .add_option(&["-d", "--density"], Store,
+                    "Particle density");
+    ap.refer(TEMPERATURE)
+        .add_option(&["-t", "--temperature"], Store,
+                    "Temperature");
+    ap.refer(CUTOFF)
+        .add_option(&["--cutoff"], Store,
+                    "Lennard jones cutoff radius in length of epsilon");
+    ap.refer(MAX_DISP_START)
+        .add_option(&["--displacement"], Store,
+                    "Displacement per trial move");
+    ap.refer(SCALE)
+        .add_option(&["--nodisplacementscale"], StoreFalse,
+                    "Disable displacement scaling");
+//    ap.refer(TRAJECTORY_STEPSIZE)
+//        .add_option(&["--trj_steps"], Store,
+//                    "Number of steps between writing to the trajectory file");
+//    ap.refer(VACUUM_DIMENSION)
+//        .add_option(&["--vacuum"], Store,
+//                    "Dimension of vacuum space below and above the intial system.");
+    ap.refer(TAILCORR)
+        .add_option(&["--notailcorr"], StoreFalse,
+                    "Disable tailcorrection");
+    ap.refer(SHIFT)
+        .add_option(&["--noshift"], StoreFalse,
+                    "Disable lj shifting");
+    ap.parse_args_or_exit();
+}
+
 fn main() {
 
     // define all the stuff
-    let minim_steps  = 1000000;
-    let sample_steps = 100000;
+    let mut minim_steps  = 1000000;
+    let mut sample_steps = 100000;
 
-    let num_particles: usize = 512;
-    let density = 0.7;
-    let temperature = 0.9;
+    let mut num_particles: usize = 512;
+    let mut density = 0.7;
+    let mut temperature = 0.9;
 
-    let cutoff = 3.0;
+    let mut cutoff = 3.0;
     let mut displacement = 0.1;
+
+    let mut  TAILCORR : bool = true;
+    let mut SHIFT: bool = false;
+    let mut SCALE: bool = true;
+    parse_cmd_args(&mut sample_steps, &mut minim_steps, &mut num_particles,
+                   &mut density, &mut temperature,
+                   &mut cutoff, &mut displacement, &mut SCALE, &mut TAILCORR, &mut SHIFT);
+
 
 
     println_stderr!("");
@@ -141,13 +191,17 @@ fn main() {
         if step < minim_steps && step_counter % 5000 == 0 && step != 0 {
             let tries_per_step : f64 = step_counter as f64 /accept_counter as f64;
             let acceptance_rate = 1.0/tries_per_step * 100.0;
-            println_stderr!("Minim {}\tEnergy: {:.3}\tVirial: {:.3}\tAcceptance:{:.1}%\tDisplacement: {:.3}", step_counter, energy, virial, acceptance_rate, displacement);
+            println_stderr!("Minim {:<10} Energy: {:<12.3} Virial: {:<12.3} Acceptance: {:<4.1}% Displacement: {:.3}", step, energy, virial, acceptance_rate, displacement);
 
-            let mut scale_factor = (TRIES_INTENDED/tries_per_step * DISP_SCALE_FACTOR).abs();
-            if tries_per_step < TRIES_INTENDED - 0.2 && displacement < max_displacement {
-                displacement += displacement * scale_factor;
-            } else if tries_per_step > TRIES_INTENDED + 0.2 && displacement > 0.0 {
-                displacement -= displacement * scale_factor;
+            if SCALE {
+                let scale_factor = (TRIES_INTENDED/tries_per_step * DISP_SCALE_FACTOR).abs();
+                if tries_per_step < TRIES_INTENDED - 0.2 && displacement < max_displacement {
+                    displacement += displacement * scale_factor;
+                } else if tries_per_step > TRIES_INTENDED + 0.2 && displacement > 0.0 {
+                    displacement -= displacement * scale_factor;
+                }
+                step_counter = 0;
+                accept_counter = 0;
             }
         }
 
@@ -165,7 +219,7 @@ fn main() {
         }
 
         if step > minim_steps && step_counter % 5000 == 0 {
-            println_stderr!("Step {}\tEnergy: {:.3}\tVirial: {:.3}\t", step_counter, energy, virial);
+            println_stderr!("Step  {:<10}Energy: {:<12.3}Virial: {:<12.3}", step_counter, energy, virial);
 
         }
 
