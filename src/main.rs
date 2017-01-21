@@ -135,13 +135,18 @@ fn main() {
 
 
         if step_counter % 5000 == 0 {
-            println!("Minim {}\tEnergy: {:.3}\tVirial: {:.3}\tAcceptance:{:.1}\tDisplacement: {:.3}", step_counter, energy, virial, 666, displacement);
+            println!("{} {}\tEnergy: {:.3}\tVirial: {:.3}\tAcceptance:{:.1}\tDisplacement: {:.3}", if step < minim_steps {"Minim"} else {"Step"} ,step_counter, energy, virial, 666, displacement);
         }
 
         // reset sums for sampling
         if step == minim_steps-1 {
-            println!("Starting averaging!");
+            println_stderr!("");
+            println_stderr!("################################################################");
+            println_stderr!("##########################  Sampling  ##########################");
+            println_stderr!("################################################################");
+            println_stderr!("");
             step_counter = 0;
+            accept_counter = 0;
             energy_sum = 0.0;
             virial_sum = 0.0;
         }
@@ -153,11 +158,52 @@ fn main() {
     let particle_energy = final_energy / num_particles as f64;
     let final_virial = virial_sum / 3.0 / step_counter as f64 / volume;
     let pressure = virial_sum / 3.0 / step_counter as f64 / volume + density * temperature + p_corr;
-    println!("Steps: {}", step_counter );
-    println!("Avg Energy: {:.3}", final_energy);
-    println!("Energy/Particle: {:.3}", particle_energy);
-    println!("Virial: {:.3}", final_virial);
-    println!("Pressure: {:.3}", pressure);
+    let final_acceptance_rate = 1.0/((accept_counter as f64)/(step_counter as f64)) * 100.0;
+
+    println_stderr!("Done sampling!");
+    println!("");
+    println!("################################################################");
+    println!("##########################  Results  ###########################");
+    println!("################################################################");
+    println!("");
+    println!(
+        "Minimization: {}
+        Steps: {}
+
+        # Lennard Jones Params
+        epsilon: {}
+        sigma: {}
+        cutoff: {}
+
+        # System
+        Particles: {}
+        Density: {}
+        Temperature: {}
+        Volume: {}
+        Box dimension: {:.3}/{:.3}/{:.3}
+        Max Displacement: {}
+
+        # Correction
+        Energy correction: {}
+        Shift: {}
+        P-Correction: {}
+
+        # Averages
+        Tries: {}
+        Accepted: {}
+        Acceptance: {:.2}%
+        Energy: {}
+        Energy per particle: {}
+        Virial: {}
+        Pressure: {}
+
+    ",
+
+        minim_steps, sample_steps,
+        LJ_EPS, LJ_SIG, cutoff,
+        num_particles, density, temperature, volume, l_x, l_y, l_z, displacement,
+        e_corr, SHIFT, p_corr,
+        step_counter, accept_counter, final_acceptance_rate, final_energy, particle_energy, final_virial, pressure);
 
 
 }
