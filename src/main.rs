@@ -30,7 +30,8 @@ macro_rules! println_stderr(
 fn parse_cmd_args(NUM_STEPS: &mut usize, NUM_MINIM_STEPS: &mut usize,
                   NUM_PARTICLES: &mut usize, DENSITY: &mut f64, TEMPERATURE: &mut f64,
                   CUTOFF: &mut f64, MAX_DISP_START: &mut f64, SCALE: &mut bool, TAILCORR: &mut bool, SHIFT: &mut bool,
-                  OUTPUT_PREFIX: &mut String, OUTPUT_INTERVAL: &mut i64, OUTPUT_MINIM: &mut bool) {
+                  OUTPUT_PREFIX: &mut String, OUTPUT_INTERVAL: &mut i64, OUTPUT_MINIM: &mut bool,
+                  VACUUM_SLAB: &mut f64) {
     let mut ap = ArgumentParser::new();
     ap.set_description("LJ MC simulation.");
     ap.refer(NUM_STEPS)
@@ -66,9 +67,9 @@ fn parse_cmd_args(NUM_STEPS: &mut usize, NUM_MINIM_STEPS: &mut usize,
     ap.refer(OUTPUT_MINIM)
         .add_option(&["--writeminimization"], StoreTrue,
                     "Enables writing of minimization step to trajectory");
-//    ap.refer(VACUUM_DIMENSION)
-//        .add_option(&["--vacuum"], Store,
-//                    "Dimension of vacuum space below and above the intial system.");
+    ap.refer(VACUUM_SLAB)
+        .add_option(&["--vacuum"], Store,
+                    "Dimension of vacuum space above the intial system relative to the rest of the system (0=no slab, 1=half filled system, 2=thrid filled system ...).");
     ap.refer(TAILCORR)
         .add_option(&["--notailcorr"], StoreFalse,
                     "Disable tailcorrection");
@@ -95,13 +96,16 @@ fn main() {
     let mut SHIFT: bool = true;
     let mut SCALE: bool = true;
 
+    let mut vacuum_slab = 0.0;
+
     let mut output_prefix = "montecarlo".to_string();
     let mut output_interval : i64 = 100;
     let mut output_minim : bool = false;
     parse_cmd_args(&mut sample_steps, &mut minim_steps, &mut num_particles,
                    &mut density, &mut temperature,
                    &mut cutoff, &mut displacement, &mut SCALE, &mut TAILCORR, &mut SHIFT,
-                   &mut output_prefix, &mut output_interval, &mut output_minim);
+                   &mut output_prefix, &mut output_interval, &mut output_minim,
+                   &mut vacuum_slab);
 
     println_stderr!("");
     println_stderr!("################################################################");
@@ -112,9 +116,16 @@ fn main() {
 
     // initialize stuff
     let beta = 1.0/temperature;
-    let volume = (num_particles as f64)/ density;
+    let mut volume = (num_particles as f64)/ density;
     let length  = volume.cbrt();
-    let (l_x, l_y, l_z) = (length, length, length);
+    let (l_x, l_y, mut l_z) = (length, length, length);
+    if vacuum_slab > 0.0 { // increase space in z
+        let scale = vacuum_slab + 1.0;
+        l_z *= scale;
+        volume *= scale;
+        density /= scale;
+    }
+
     let cutoff_squared = cutoff * cutoff;
     let max_displacement = length / 2.0;
 
