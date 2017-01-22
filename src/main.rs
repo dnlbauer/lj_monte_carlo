@@ -151,7 +151,7 @@ fn main() {
     println_stderr!("System volume: {:8.3}, Dimensions {:.3}/{:.3}/{:.3}", volume, l_x, l_y, l_z);
     println_stderr!("Minimization steps: {}, Sampling steps: {}", minim_steps, sample_steps);
     println_stderr!("LJ params eps: {}, sigma: {}, cutoff: {}", LJ_EPS, LJ_SIG, cutoff);
-    println_stderr!("Tailcorr: {:8.3}, Shift: {:8.3}, Pressurecprr: {:8.3}", e_corr, e_shift, p_corr);
+    println_stderr!("Tailcorr: {:8.3}, Shift: {:8.3}, Pressurecorr: {:8.3}", e_corr, e_shift, p_corr);
 
     let (mut energy, mut virial) = get_total_energy(&rx, &ry, &rz, num_particles, l_x, l_y, l_z, cutoff_squared, e_corr, e_shift);
     let mut energy_sum = 0.0;
