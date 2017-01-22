@@ -119,12 +119,6 @@ fn main() {
     let mut volume = (num_particles as f64)/ density;
     let length  = volume.cbrt();
     let (l_x, l_y, mut l_z) = (length, length, length);
-    if vacuum_slab > 0.0 { // increase space in z
-        let scale = vacuum_slab + 1.0;
-        l_z *= scale;
-        volume *= scale;
-        density /= scale;
-    }
 
     let cutoff_squared = cutoff * cutoff;
     let max_displacement = length / 2.0;
@@ -140,6 +134,13 @@ fn main() {
         ry.push(l_y * rng.gen::<f64>());
         rz.push(l_z * rng.gen::<f64>());
         if rx.len() == num_particles { break; }
+    }
+
+    if vacuum_slab > 0.0 { // increase space in z
+        let scale = vacuum_slab + 1.0;
+        l_z *= scale;
+        volume *= scale;
+        density /= scale;
     }
 
     let e_shift = if SHIFT { 4.0 * LJ_EPS * ( (LJ_SIG/cutoff).powi(12) - (LJ_SIG/cutoff).powi(6) ) } else { 0.0 };
