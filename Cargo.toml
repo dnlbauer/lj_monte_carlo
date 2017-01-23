@@ -11,5 +11,16 @@ argparse = "*"
 lto = true
 opt-level = 3
 
+[[bin]]
+name = "mc"
+path = "src/main.rs"
+
+[[bin]]
+name = "widom"
+path = "src/widom.rs"
+
+[[bin]]
+name = "surface_tension"
+path = "src/surface_tension.rs"
 
 
