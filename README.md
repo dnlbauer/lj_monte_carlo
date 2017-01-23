@@ -3,8 +3,8 @@ Simple Lennard Jones Liquid MC simulation implemented in Rust
 
 To compile, run:
 ```
-/ release builds are much faster because of enabled lto
-cargo build --release /
+// release builds are much faster because of enabled lto
+cargo build --release 
 ```
 
 The compiled binary can then be found in ```target/release.```
@@ -19,7 +19,7 @@ Source: Ge J. et ak., Scaling behavior for a pressure and energy of shearing flu
 Some results obtained during the creation of this project
 
 
-![Function of state](results/FoS/FoS.png)
+![Function of state](results/FoS/FoS.png)  
 Function of state at different temperatures. 512 particles were simulated with applied potential shift and tailcorrection. Displacement scaled to have 33% acceptance rate during 1mio steps. Averages over 100k steps.
 
 ![Minimization](results/energy_minimization/energy_minimization.png)
