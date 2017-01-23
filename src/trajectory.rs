@@ -64,8 +64,7 @@ pub struct TrjReader {
     pub reader: BufReader<File>,
 }
 impl TrjReader {
-    pub fn new() -> TrjReader {
-        let filename = "trajectory.xyz";
+    pub fn new(filename: &String) -> TrjReader {
         let file = File::open(filename).expect("Failed to open file.");
         let reader : BufReader<File> = BufReader::new(file);
         return TrjReader { reader:reader };
@@ -95,7 +94,7 @@ impl TrjReader {
         let mut rx = Vec::new();
         let mut ry = Vec::new();
         let mut rz = Vec::new();
-        for i in 0..num_particles-1{
+        for i in 0..num_particles{
             let atom_line = &mut String::new();
             match self.reader.read_line(atom_line) {
                 Ok(size) => {
@@ -132,7 +131,7 @@ impl TrjReader {
                     return false;
                 }
             },
-            Err(e) => panic!("no new frame!")
+            Err(e) => { return false; }
         }
         let first_line_vec : Vec<&str> = buffer_string.split_whitespace().collect();
         frame.num_particles = first_line_vec[0].parse::<usize>().unwrap();
@@ -144,7 +143,7 @@ impl TrjReader {
         frame.lj_eps = lj[0].parse::<f64>().unwrap();
         frame.lj_sig = lj[1].parse::<f64>().unwrap();
         frame.lj_cutoff = lj[2].parse::<f64>().unwrap();
-        for i in 0..frame.num_particles-1 {
+        for i in 0..frame.num_particles {
             let atom_line = &mut String::new();
             match self.reader.read_line(atom_line) {
                 Ok(size) => {

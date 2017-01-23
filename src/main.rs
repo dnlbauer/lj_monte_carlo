@@ -124,7 +124,7 @@ fn main() {
     let max_displacement = length / 2.0;
 
     let mut rng = rand::thread_rng();
-    let particle_range = Range::new(0, num_particles-1);
+    let particle_range = Range::new(0, num_particles);
 
     let mut rx : Vec<f64> = vec![];
     let mut ry : Vec<f64> = vec![];
