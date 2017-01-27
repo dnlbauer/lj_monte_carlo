@@ -6,7 +6,7 @@ use std::error::Error;
 use std::io::prelude::*;
 use std::fs::File;
 use std::path::Path;
-
+use std::fmt;
 use std::io::BufReader;
 
 
@@ -58,6 +58,21 @@ pub struct Frame {
     pub lj_eps: f64,
     pub lj_sig: f64,
     pub lj_cutoff: f64,
+}
+
+impl fmt::Debug for Frame {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("Frame")
+            .field("num_particles", &self.num_particles)
+            .field("box_x", &self.box_x)
+            .field("box_y", &self.box_y)
+            .field("box_z", &self.box_z)
+            .field("temperature", &self.temperature)
+            .field("lj_eps", &self.lj_eps)
+            .field("lj_sig", &self.lj_sig)
+            .field("lj_cutoff", &self.lj_cutoff)
+            .finish()
+    }
 }
 
 pub struct TrjReader {
