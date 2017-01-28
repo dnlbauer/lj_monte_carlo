@@ -136,7 +136,8 @@ fn main() {
         if rx.len() == num_particles { break; }
     }
 
-    if vacuum_slab > 0.0 { // increase space in z
+    // scale box in z for vacuum space above
+    if vacuum_slab > 0.0 {
         let scale = vacuum_slab + 1.0;
         l_z *= scale;
         volume *= scale;
@@ -169,8 +170,16 @@ fn main() {
     let mut trajectory : XYZTrajectory = XYZTrajectory::new(&format!("{}.xyz", output_prefix));
     if output_minim { trajectory.write(&rx, &ry, &rz, num_particles, l_x, l_y, l_z, temperature, LJ_EPS, LJ_SIG, cutoff, true); }
 
+//    let vacuum_scale_step = (minim_steps as f64 * 0.1) as usize;
     for step in 0..minim_steps+sample_steps {
 
+        // first minimizate solvent phase, then add vacuum slab
+//        if vacuum_slab > 0.0 && step == vacuum_scale_step { // increase space in z
+//            let scale = vacuum_slab + 1.0;
+//            l_z *= scale;
+//            volume *= scale;
+//            density /= scale;
+//        }
         // select rnd particle
         let rnd_index = particle_range.ind_sample(&mut rng);
 
