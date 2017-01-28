@@ -39,9 +39,9 @@ pub fn get_particle_energy(rx: &[f64], ry: &[f64], rz: &[f64], p_index: usize, n
 }
 
 pub fn get_particle_distance_squared(x1: f64,y1: f64,z1: f64,x2: f64,y2: f64,z2: f64, l_x: f64, l_y: f64, l_z: f64, hl_x: f64, hl_y: f64, hl_z: f64) -> f64 {
-    let mut dx = x1 - x2;
-    let mut dy = y1 - y2;
-    let mut dz = z1 - z2;
+    let mut dx = (x1 - x2).abs();
+    let mut dy = (y1 - y2).abs();
+    let mut dz = (z1 - z2).abs();
 
     if dx > hl_x { dx -= l_x }
         else if dx < -hl_x { dx += l_x }
@@ -49,8 +49,8 @@ pub fn get_particle_distance_squared(x1: f64,y1: f64,z1: f64,x2: f64,y2: f64,z2:
         else if dy < -hl_y{ dy += l_y }
     if dz > hl_z { dz -= l_y }
         else if dz < -hl_z { dz += l_z}
-
     return dx*dx + dy*dy + dz*dz;
+
 }
 
 pub fn get_particle_distance(x1: f64,y1: f64,z1: f64,x2: f64,y2: f64,z2: f64, l_x: f64, l_y: f64, l_z: f64, hl_x: f64, hl_y: f64, hl_z: f64) -> f64{
@@ -67,6 +67,13 @@ fn test_get_particle_distance_squared() {
 
     // with pbc
     assert!( (get_particle_distance_squared(x1,y1,z1,x2,y2,z2, 9.0,9.0,9.0, 4.5,4.5,4.5) - 16.0) < 0.00001, "{}", get_particle_distance_squared(x1,y1,z1,x2,y2,z2, 9.0,9.0,9.0, 4.5,4.5,4.5));
+
+    // PBC edge case
+    let (x3, y3, z3) = ( 0.948369102634727,1.4018028642626956,2.6884871697542323);
+    let (x4, y4, z4) = ( 0.4924652252404308,0.27903672240586597,1.258265555104697);
+    let a = get_particle_distance_squared(x3,y3,z3,x4,y4,z4, 1.418983411970384,1.418983411970384,2.83796682394076,0.709491705985192,0.709491705985192,1.418983411970384);
+    let b = get_particle_distance_squared(x4,y4,z4,x3,y3,z3, 1.418983411970384,1.418983411970384,2.83796682394076,0.709491705985192,0.709491705985192,1.418983411970384);
+    assert!( (a-b).abs() < 0.0000000001);
 }
 
 pub fn eval_pair_energy(dist_squared: f64, e_shift: f64) -> (f64, f64) {
