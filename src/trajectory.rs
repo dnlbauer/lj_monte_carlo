@@ -178,4 +178,30 @@ impl TrjReader {
         return true;
     }
 
+    // skip x frames
+    pub fn skip(&mut self, skip: usize) {
+        if skip < 1 { return };
+
+        // find number of particles
+        let buffer_string = &mut String::new();
+        match self.reader.read_line(buffer_string) {
+            Ok(size) => {
+                if size == 0 {
+                    panic!("no new frame!")
+                }
+            },
+            Err(e) => panic!("no new frame!")
+        }
+        let first_line_vec : Vec<&str> = buffer_string.split_whitespace().collect();
+        let num_particles = first_line_vec[0].parse::<usize>().unwrap();
+
+        let lines_to_skip = (num_particles + 1) * skip - 1;
+        let mut skipped = 0;
+        loop {
+            self.reader.read_line(&mut String::new());
+            skipped += 1;
+            if skipped == lines_to_skip { break; }
+        }
+    }
+
 }

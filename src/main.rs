@@ -136,12 +136,16 @@ fn main() {
         if rx.len() == num_particles { break; }
     }
 
-    // scale box in z for vacuum space above
+    // scale box in z for vacuum space and move particles in the middle of the box
     if vacuum_slab > 0.0 {
         let scale = vacuum_slab + 1.0;
         l_z *= scale;
         volume *= scale;
         density /= scale;
+        let move_z = l_z/scale*vacuum_slab/2.0;
+        for i in 0..num_particles {
+            rz[i] += move_z;
+        }
     }
 
     let e_shift = if SHIFT { 4.0 * LJ_EPS * ( (LJ_SIG/cutoff).powi(12) - (LJ_SIG/cutoff).powi(6) ) } else { 0.0 };
@@ -196,11 +200,11 @@ fn main() {
         ry[rnd_index] += ( rng.gen::<f64>() - 0.5 ) * displacement;
         rz[rnd_index] += ( rng.gen::<f64>() - 0.5 ) * displacement;
         if rx[rnd_index] < 0.0 { rx[rnd_index] += l_x }
-        if rx[rnd_index] > l_x { rx[rnd_index] -= l_x }
+        if rx[rnd_index] >= l_x { rx[rnd_index] -= l_x }
         if ry[rnd_index] < 0.0 { ry[rnd_index] += l_y }
-        if ry[rnd_index] > l_y { ry[rnd_index] -= l_y }
+        if ry[rnd_index] >= l_y { ry[rnd_index] -= l_y }
         if rz[rnd_index] < 0.0 { rz[rnd_index] += l_z }
-        if rz[rnd_index] > l_z { rz[rnd_index] -= l_z }
+        if rz[rnd_index] >= l_z { rz[rnd_index] -= l_z }
 
         // calculate energy difference
         let (new_particle_energy, new_particle_virial) = get_particle_energy(&rx, &ry, &rz, rnd_index, num_particles, l_x, l_y, l_z, cutoff_squared, e_shift);

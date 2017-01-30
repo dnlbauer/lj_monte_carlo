@@ -74,6 +74,11 @@ fn test_get_particle_distance_squared() {
     let a = get_particle_distance_squared(x3,y3,z3,x4,y4,z4, 1.418983411970384,1.418983411970384,2.83796682394076,0.709491705985192,0.709491705985192,1.418983411970384);
     let b = get_particle_distance_squared(x4,y4,z4,x3,y3,z3, 1.418983411970384,1.418983411970384,2.83796682394076,0.709491705985192,0.709491705985192,1.418983411970384);
     assert!( (a-b).abs() < 0.0000000001);
+
+    let (x1, y1, z1) = (1.0, 1.0, 1.0);
+    let (x2, y2, z2) = (99.0, 99.0, 99.0);
+    let dist = get_particle_distance_squared(x1,y1,z1,x2,y2,z2, 100.0, 100.0, 100.0, 50.0, 50.0, 50.0);
+    assert!(dist - 12.0 < 0.00001);
 }
 
 pub fn eval_pair_energy(dist_squared: f64, e_shift: f64) -> (f64, f64) {

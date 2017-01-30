@@ -23,4 +23,7 @@ path = "src/widom.rs"
 name = "surface_tension"
 path = "src/surface_tension.rs"
 
+[[bin]]
+name = "density_z"
+path = "src/density_z.rs"
 
