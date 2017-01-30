@@ -19,11 +19,10 @@ for i, val in enumerate(sys.argv):
         inp = sys.argv[i+1]
     if val == "-o":
         out = sys.argv[i+1]
-    if val == "-s":
+    if val == "-s" or val == "--skip":
         skip = int(sys.argv[i+1])
-    if val == "-m":
+    if val == "-m" or val == "--move":
         move = float(sys.argv[i+1])
-        max_z = float(sys.argv[i+2])
 
 print "Extracting every %s step from %s" % (step_size, sys.argv[1])
 
@@ -34,19 +33,22 @@ outfile = open(out, "w")
 if skip != -1:
     print "Skipping %s frames" % skip
 
+
+max_z = 0
 with open(inp, "r") as infile:
     for line in infile:
 
         # get num particles from first line
         if not line.startswith("atom") and num_particles == 0:
             num_particles = int(line.split()[0])
+            max_z = float(line.split()[5])
             print "Particles: %s" % num_particles
             print ""
 
         if not line.startswith("atom"):
             step_counter += 1
 
-        if step_counter > skip and step_counter == 0 or (step_counter % step_size) == 0:
+        if step_counter > skip and (step_counter == 0 or (step_counter % step_size) == 0):
              if move > 0 and line.startswith("atom"):
                 split = line.split()
                 split[3] = float(split[3]) + move
