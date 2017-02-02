@@ -12,18 +12,28 @@ const LJ_SIG : f64 = 1.0;
 static MKSA_PLANCKS_CONSTANT_H : f64 = 1.0;
 static MASS : f64 = 1.0;
 
-const INSERTIONS_PER_STEP : usize = 1000;
-const RUN_AVG_SIZE : usize = 100;
+const RUN_AVG_SIZE : usize = 10;
 
 const SHIFT : bool = true;
 
+fn eval_ideal_potential(temperature: f64, lj_eps: f64, volume: f64, particles: f64, thermal_wavelength3: f64) -> f64 {
+    let density = volume/particles;
+    return -temperature/lj_eps * ( density*thermal_wavelength3 ).ln();
+}
 
+#[test]
+fn test_eval_ideal_potential() {
+    let expected = 12.476649;
+    let result = eval_ideal_potential(2.0,1.0,10.0,512.0,0.1);
+    assert!((expected-result).abs() < 0.00001, "{}", result);
+}
 
 fn main() {
     // parse args
     let args: Vec<String> = env::args().collect();
     let mut filename = "montecarlo.xyz".to_string();
     let mut skip: usize = 0;
+    let mut insertions: usize = 100;
 
     // liquid phase boundaries
     let mut liquid_start = 0.0;
@@ -37,6 +47,8 @@ fn main() {
             liquid_start = args[i + 1].parse::<f64>().unwrap();
         } else if args[i] == "-le" {
             liquid_end = args[i + 1].parse::<f64>().unwrap();
+        } else if args[i] == "-n" {
+            insertions = args[i+1].parse::<usize>().unwrap();
         }
     }
 
@@ -44,6 +56,7 @@ fn main() {
     let mut trj_reader = TrjReader::new(&filename);
     if skip > 0 { trj_reader.skip(skip) };
 
+    // trajectory information
     let mut frame = trj_reader.next_frame();
     println!("{:?}", frame);
 
@@ -55,25 +68,28 @@ fn main() {
     // rnd number generator for particle insertion
     let mut rng = rand::thread_rng();
 
-
     // calculate liquid and gas volume
     let liquid_height : f64 = liquid_end - liquid_start;
     let liquid_volume = liquid_height * frame.box_x * frame.box_y;
     let gas_volume = volume - liquid_volume;
 
-    // lambda = h/sqrt(2*pi*m*kb*T) = (2*pi*m*kb*T/h^2)^3/2
-    // this is lambda^3
-    let wave3 =  ((2.0 * std::f64::consts::PI * MASS * frame.temperature / frame.lj_eps)/MKSA_PLANCKS_CONSTANT_H.powi(2)).powf(3.0/2.0);
+    // thermal wavelength to the power of 3 = h/sqrt(2*pi*m*kb*T) = (2*pi*m*kb*T/h^2)^3/2
+    let tw3 =  ((2.0 * std::f64::consts::PI * MASS * frame.temperature / frame.lj_eps)/MKSA_PLANCKS_CONSTANT_H.powi(2)).powf(3.0/2.0);
+
+    // LJ shift
     let e_shift = if SHIFT { 4.0 * LJ_EPS * ( (LJ_SIG/frame.lj_cutoff).powi(12) - (LJ_SIG/frame.lj_cutoff).powi(6) ) } else { 0.0 };
 
 
     // average counters
     let mut frame_count = 0;
     let mut widom_sum_gas = 0.0;
-    let mut ideal_sum_gas = 0.0;
+    let mut ideal_pot_gas_sum = 0.0;
     let mut widom_sum_liquid = 0.0;
-    let mut ideal_sum_liquid = 0.0;
+    let mut ideal_pot_liquid_sum = 0.0;
     let mut avg_count = 0;
+
+    // loop over all frames
+    let mut counter = 0;
     loop  {
         frame_count += 1;
 
@@ -85,9 +101,8 @@ fn main() {
             else { gas_count += 1.0; }
         }
 
-
-        // test particle insertion multiple times
-        for i in 0..INSERTIONS_PER_STEP {
+        // test particle insertion
+        for i in 0..insertions {
             avg_count += 1;
 
             // liquid test partcile
@@ -96,45 +111,39 @@ fn main() {
             let lz = liquid_start + (liquid_height * rng.gen::<f64>());
             let widom_e_liquid = get_particle_insertion_energy(&frame.rx, &frame.ry, &frame.rz, frame.num_particles, lx, ly, lz, frame.box_x, frame.box_y, frame.box_z, cutoff_sqr, e_shift);
             widom_sum_liquid += (-beta*widom_e_liquid).exp();
-//            widom_sum_liquid += widom_e_liquid;
 
             // gas test particle
-            let upper_or_lower = rng.gen::<bool>();
             let gx = frame.box_x * rng.gen::<f64>();
             let gy = frame.box_y * rng.gen::<f64>();
-            let gz;
-            if upper_or_lower {
-                gz = rng.gen::<f64>() * liquid_start;
-            } else {
-                gz = rng.gen::<f64>() * (frame.box_z - liquid_end) + liquid_end;
+            let mut gz = frame.box_z * rng.gen::<f64>();
+            while gz > liquid_start && gz < liquid_end { // retry until we have a particle in gas
+                 gz= frame.box_z * rng.gen::<f64>();
             }
+
             let widom_e_gas = get_particle_insertion_energy(&frame.rx, &frame.ry, &frame.rz, frame.num_particles, gx, gy, gz, frame.box_x, frame.box_y, frame.box_z, cutoff_sqr, e_shift);
             widom_sum_gas += (-beta*widom_e_gas).exp();
-//            widom_sum_gas += widom_e_gas;
 
-            // calculate ideal gas potential
-            ideal_sum_gas += -frame.temperature / frame.lj_eps * ((gas_volume/gas_count) * wave3).ln();
-            ideal_sum_liquid += frame.temperature / frame.lj_eps * ((liquid_volume/liquid_count) * wave3).ln();
+            // calculate ideal potentials
+            ideal_pot_gas_sum += eval_ideal_potential(frame.temperature, frame.lj_eps, gas_volume, gas_count, tw3);
+            ideal_pot_liquid_sum += eval_ideal_potential(frame.temperature, frame.lj_eps, liquid_volume, liquid_count, tw3);
 
         }
 
         // print running averages
-        if avg_count / INSERTIONS_PER_STEP > RUN_AVG_SIZE {
-            let ideal_gas = ideal_sum_gas / avg_count as f64;
-            let ideal_liquid = ideal_sum_liquid / avg_count as f64;
-//            let excess_gas = - (widom_sum_gas/avg_count as f64).ln()/beta;
-//            let excess_liquid = - (widom_sum_liquid/avg_count as f64).ln()/beta;
+        if avg_count / insertions > RUN_AVG_SIZE {
+            let ideal_gas_potential = ideal_pot_gas_sum / avg_count as f64;
+            let ideal_liquid_potential = ideal_pot_liquid_sum / avg_count as f64;
             let excess_gas = -(widom_sum_gas/avg_count as f64).ln()/beta;
             let excess_liquid = -(widom_sum_liquid/avg_count as f64).ln()/beta;
-            let gas_total = ideal_gas + excess_gas;
-            let liquid_total = ideal_liquid + excess_liquid;
-            println!("Frame {}\tg_ex: {:5}\tl_ex: {:5}\tg_tot: {:5}\tl_tot: {:5}\t\tnparticles: {}/{}", frame_count, excess_gas, excess_liquid, gas_total, liquid_total, gas_count, liquid_count);
+            let mut gas_total = ideal_gas_potential + excess_gas;
+            let liquid_total = ideal_liquid_potential + excess_liquid;
+            println!("Frame {}\tg_ex: {:5}\tl_ex: {:5}\tg_tot: {:5}\tl_tot: {:5}\t\tnparticles: {}/{}", frame_count, excess_gas, excess_liquid, if gas_total.is_infinite() { 0.0 } else { gas_total } , liquid_total, gas_count, liquid_count);
 //            println!("Frame {}\tgas {}\tliquid {}\t particles gas/liquid:{}/{}", frame_count, ideal_gas + excess_gas, ideal_liquid + excess_liquid, gas_count, liquid_count);
 
             // reset averages for next round
             avg_count = 0;
-            ideal_sum_gas = 0.0;
-            ideal_sum_liquid = 0.0;
+            ideal_pot_gas_sum = 0.0;
+            ideal_pot_liquid_sum = 0.0;
             widom_sum_gas = 0.0;
             widom_sum_liquid = 0.0;
         }
