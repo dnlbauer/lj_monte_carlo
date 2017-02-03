@@ -237,7 +237,8 @@ fn main() {
             let tries_per_step : f64 = step_counter as f64 /accept_counter as f64;
             let acceptance_rate = 1.0/tries_per_step * 100.0;
             let avg_energy = energy_sum / step_counter as f64;
-            println_stderr!("Minim {:<10} Energy: {:<30.3} Accept.: {:<4.1}%   dr: {:.3}", step+1, avg_energy, acceptance_rate, displacement);
+            let avg_virial = virial_sum / step_counter as f64;
+            println_stderr!("Minim {:<10} Energy: {:<30.3} Virial: {:<30.3} Accept.: {:<4.1}%   dr: {:.3}", step+1, avg_energy, avg_virial, acceptance_rate, displacement);
 
             if SCALE {
                 let scale_factor = (TRIES_INTENDED/tries_per_step * DISP_SCALE_FACTOR).abs();

@@ -8,19 +8,6 @@ const LJ_EPS : f64 = 1.0;
 const LJ_SIG : f64 = 1.0;
 
 
-fn get_virial(distance: f64) -> f64 {
-    let r7 = (LJ_SIG/distance).powi(7);
-    let r13 = (LJ_SIG/distance).powi(13);
-    return 24.0 * LJ_EPS / LJ_SIG * ( r7-2.0*r13 );
-}
-
-#[test]
-fn test_get_viral() {
-    let result = get_virial(2.5);
-    let expected = 0.038999477;
-    assert!( (result - expected) < 0.0001, "{}", result );
-}
-
 fn get_distance_with_pbc(x1: f64, x2: f64, length: f64, half_length: f64) -> f64 {
     let mut d = (x1-x2).abs();
     if d > half_length { d -= length }
@@ -89,7 +76,7 @@ fn main() {
                 let dx = get_distance_with_pbc(frame.rx[i], frame.rx[j], frame.box_x, box_half_x);
                 let dy = get_distance_with_pbc(frame.ry[i], frame.ry[j], frame.box_y, box_half_y);
                 let dz = get_distance_with_pbc(frame.rz[i], frame.rz[j], frame.box_z, box_half_z);
-                let virial = get_virial(dist);
+                let virial = eval_virial(dist, LJ_EPS, LJ_SIG);
                 trace_xy += (dx * dx + dy * dy) / dist * virial;
                 trace_z += (dz * dz) / dist * virial;
             }

@@ -100,3 +100,18 @@ fn test_eval_pair_energy() {
     let (e,v) = eval_pair_energy(0.5, 0.0);
     assert!( (e - 224.0).abs() < 0.00001, "{}",  e);
 }
+
+
+pub fn eval_virial(distance: f64, LJ_EPS: f64, LJ_SIG: f64) -> f64 {
+    let r7 = (LJ_SIG/distance).powi(7);
+    let r13 = (LJ_SIG/distance).powi(13);
+    return 24.0 * LJ_EPS / LJ_SIG * ( r7-2.0*r13 );
+}
+
+#[test]
+fn test_eval_virial() {
+    let dist = 1.5;
+    let result = eval_virial(dist, 1.0, 1.0, 0.0);
+    let expected = 1.1580288;
+    assert!( (result - expected).abs() < 0.0001, "{}", result );
+}
