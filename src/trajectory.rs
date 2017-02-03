@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-#![allow(unused_must_use)] // hate.
+#![allow(unused_must_use)]
 #![allow(unused_variables)]
 
 use std::error::Error;
@@ -8,7 +8,6 @@ use std::fs::File;
 use std::path::Path;
 use std::fmt;
 use std::io::BufReader;
-
 
 pub struct XYZTrajectory {
     file: File,
@@ -30,7 +29,6 @@ impl XYZTrajectory {
         XYZTrajectory { file: traj_file }
 
     }
-
 
     pub fn write(&mut self, rx: &[f64], ry: &[f64], rz: &[f64], num_particles: usize, box_x : f64, box_y : f64, box_z : f64, temp: f64 ,lj_eps : f64, lj_sig : f64, lj_cutoff : f64, flush: bool) {
         self.file.write(format!("{} ## Box: {} {} {} Temp: {} LJ: {}/{}/{}\n", num_particles, box_x,box_y,box_z,temp, lj_eps, lj_sig, lj_cutoff).as_bytes());

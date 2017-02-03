@@ -1,4 +1,7 @@
+ #![allow(dead_code)]
 
+/// Calculates the total energy and virial of a system containing num_particles with coords rx,ry,rz
+/// of size l_x, l_y, l_z and given cutoff + corrections
 pub fn get_total_energy(rx: &[f64], ry: &[f64], rz: &[f64], num_particles: usize, l_x: f64, l_y: f64, l_z: f64, cutoff_squared: f64, e_corr: f64, e_shift: f64) -> (f64, f64) {
     let mut energy = 0.0;
     let mut virial = 0.0;
@@ -19,6 +22,8 @@ pub fn get_total_energy(rx: &[f64], ry: &[f64], rz: &[f64], num_particles: usize
     return (energy, virial);
 }
 
+/// Calculates the particle energy and virial for particle at p_index in system containing num_particles with coords rx,ry,rz
+/// of size l_x, l_y, l_z and given cutoff + corrections
 pub fn get_particle_energy(rx: &[f64], ry: &[f64], rz: &[f64], p_index: usize, num_particles: usize, l_x: f64, l_y: f64, l_z: f64, cutoff_squared: f64, e_shift: f64) -> (f64, f64) {
     let mut energy = 0.0;
     let mut virial = 0.0;
@@ -38,6 +43,7 @@ pub fn get_particle_energy(rx: &[f64], ry: &[f64], rz: &[f64], p_index: usize, n
     return (energy, virial);
 }
 
+// squared distance between 2 particles regarding the minimum image convention
 pub fn get_particle_distance_squared(x1: f64,y1: f64,z1: f64,x2: f64,y2: f64,z2: f64, l_x: f64, l_y: f64, l_z: f64, hl_x: f64, hl_y: f64, hl_z: f64) -> f64 {
     let mut dx = (x1 - x2).abs();
     let mut dy = (y1 - y2).abs();
@@ -50,12 +56,16 @@ pub fn get_particle_distance_squared(x1: f64,y1: f64,z1: f64,x2: f64,y2: f64,z2:
     if dz > hl_z { dz -= l_y }
         else if dz < -hl_z { dz += l_z}
     return dx*dx + dy*dy + dz*dz;
-
 }
 
-pub fn get_particle_distance(x1: f64,y1: f64,z1: f64,x2: f64,y2: f64,z2: f64, l_x: f64, l_y: f64, l_z: f64, hl_x: f64, hl_y: f64, hl_z: f64) -> f64{
-    return get_particle_distance_squared(x1,y1,z1,x2,y2,z2, l_x, l_y, l_z, hl_x, hl_y, hl_z).sqrt();
+// one dimensional distance with applied minimum image convention
+pub fn get_distance_with_pbc(x1: f64, x2: f64, length: f64, half_length: f64) -> f64 {
+    let mut d = (x1-x2).abs();
+    if d > half_length { d -= length }
+    else if d < -half_length { d += length }
+    return d;
 }
+
 
 #[test]
 fn test_get_particle_distance_squared() {
@@ -81,6 +91,7 @@ fn test_get_particle_distance_squared() {
     assert!(dist - 12.0 < 0.00001);
 }
 
+/// calculate the lj energy and virial between two particles from given square distance
 pub fn eval_pair_energy(dist_squared: f64, e_shift: f64) -> (f64, f64) {
     let r6 = ::LJ_SIG/(dist_squared * dist_squared * dist_squared);
     let r62 = r6*r6;
@@ -101,11 +112,12 @@ fn test_eval_pair_energy() {
     assert!( (e - 224.0).abs() < 0.00001, "{}",  e);
 }
 
-
-pub fn eval_virial(distance: f64, LJ_EPS: f64, LJ_SIG: f64) -> f64 {
-    let r7 = (LJ_SIG/distance).powi(7);
-    let r13 = (LJ_SIG/distance).powi(13);
-    return 24.0 * LJ_EPS / LJ_SIG * ( r7-2.0*r13 );
+/// calculate the virial between two particles from given square distance. If energy is required too,
+/// see eval_pair_energy which does energy and virial
+pub fn eval_virial(distance: f64, lj_eps: f64, lj_sig: f64) -> f64 {
+    let r7 = (lj_sig/distance).powi(7);
+    let r13 = (lj_sig/distance).powi(13);
+    return 24.0 * lj_eps / lj_sig * ( r7-2.0*r13 );
 }
 
 #[test]

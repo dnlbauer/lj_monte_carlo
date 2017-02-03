@@ -7,32 +7,14 @@ use std::env;
 const LJ_EPS : f64 = 1.0;
 const LJ_SIG : f64 = 1.0;
 
-
-fn get_distance_with_pbc(x1: f64, x2: f64, length: f64, half_length: f64) -> f64 {
-    let mut d = (x1-x2).abs();
-    if d > half_length { d -= length }
-    else if d < -half_length { d += length }
-    return d;
-}
-
-fn eval_surface_tension(box_z: f64, p_zz: f64, p_xy: f64) -> f64 {
-    return box_z / 2.0 * (p_zz - p_xy);
-}
-
-#[test]
-fn test_eval_surface_tension() {
-    let expected = 2.0;
-    let result = eval_surface_tension(2.0,5.0,3.0);
-    assert!( (result-expected).abs() < 0.0001, "{}", result );
-}
-
+const AVG_OUTPUT_INTERVAL : usize = 10;
 
 fn main() {
-
-    // parse args
-    let args: Vec<String> = env::args().collect();
     let mut filename = "montecarlo.xyz".to_string();
     let mut skip: usize = 0;
+
+    // parse cmd line args
+    let args: Vec<String> = env::args().collect();
     for i in 0..args.len() {
         if args[i] == "-f" {
             filename = args[i + 1].clone();
@@ -41,17 +23,16 @@ fn main() {
         }
     }
 
-    // open file and skip to requiested position
+    // open file and skip to requested position
     let mut trj_reader = TrjReader::new(&filename);
     if skip > 0 { trj_reader.skip(skip) };
 
-    // trajectory information
+    // read first trajectory and system params
     let mut frame = trj_reader.next_frame();
-    println!("{:?}", frame);
-
     let volume = frame.box_x * frame.box_y * frame.box_z;
     let density = frame.num_particles as f64 / volume;
     let num_particles = frame.num_particles;
+    println!("{:?}", frame);
 
     let box_half_x = frame.box_x / 2.0;
     let box_half_y = frame.box_y / 2.0;
@@ -63,6 +44,7 @@ fn main() {
 
     let variable_without_name = frame.temperature/LJ_EPS * density;
 
+    println!("Calculating surface tension");
     println!("~~~ THIS IS A RUNNING AVERAGE! ~~~");
     loop {
         frame_count += 1;
@@ -71,6 +53,7 @@ fn main() {
         let mut trace_z = 0.0;
         for i in 0..num_particles {
             for j in i+1..num_particles {
+                // this needs some optimization for speed
                 let dist_sqrt = get_particle_distance_squared(frame.rx[i], frame.ry[i], frame.rz[i], frame.rx[j], frame.ry[j], frame.rz[j], frame.box_x, frame.box_y, frame.box_z, box_half_x, box_half_y, box_half_z);
                 let dist = dist_sqrt.sqrt();
                 let dx = get_distance_with_pbc(frame.rx[i], frame.rx[j], frame.box_x, box_half_x);
@@ -88,7 +71,7 @@ fn main() {
         p_z_sum += p_zz;
 
         ///////////////////////////////////
-        if frame_count % 10 == 0 {
+        if frame_count % AVG_OUTPUT_INTERVAL == 0 {
             let p_z_avg = p_z_sum / frame_count as f64;
             let p_xy_avg = p_xy_sum / frame_count as f64;
             let p_diff = p_z_avg - p_xy_avg;
@@ -100,7 +83,20 @@ fn main() {
             // p_xy_sum = 0.0;
         }
 
+        // read next frame
         if !trj_reader.update_with_next(&mut frame) { break }
     }
 
+}
+
+/// calc surface tension from box z size and pressure tensor
+fn eval_surface_tension(box_z: f64, p_zz: f64, p_xy: f64) -> f64 {
+    return box_z / 2.0 * (p_zz - p_xy);
+}
+
+#[test]
+fn test_eval_surface_tension() {
+    let expected = 2.0;
+    let result = eval_surface_tension(2.0,5.0,3.0);
+    assert!( (result-expected).abs() < 0.0001, "{}", result );
 }
