@@ -12,7 +12,7 @@ const LJ_SIG : f64 = 1.0;
 static MKSA_PLANCKS_CONSTANT_H : f64 = 1.0;
 static MASS : f64 = 1.0;
 
-const RUN_AVG_SIZE : usize = 10;
+const RUN_AVG_SIZE : usize = 1;
 
 const SHIFT : bool = true;
 
