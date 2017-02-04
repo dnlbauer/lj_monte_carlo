@@ -66,7 +66,6 @@ pub fn get_distance_with_pbc(x1: f64, x2: f64, length: f64, half_length: f64) ->
     return d;
 }
 
-
 #[test]
 fn test_get_particle_distance_squared() {
     let (x1, y1, z1) = (0.0, 0.0, 0.0);
@@ -102,13 +101,13 @@ pub fn eval_pair_energy(dist_squared: f64, e_shift: f64) -> (f64, f64) {
 
 #[test]
 fn test_eval_pair_energy() {
-    let (e,v) = eval_pair_energy(1.0, 0.0);
+    let e = eval_pair_energy(1.0, 0.0).0;
     assert!( (e - 0.0).abs() < 0.00001, "{}",  e);
 
-    let (e,v) = eval_pair_energy(2.0, 0.0);
+    let e = eval_pair_energy(2.0, 0.0).0;
     assert!( (e - -0.4375).abs() < 0.00001, "{}",  e);
 
-    let (e,v) = eval_pair_energy(0.5, 0.0);
+    let e = eval_pair_energy(0.5, 0.0).0;
     assert!( (e - 224.0).abs() < 0.00001, "{}",  e);
 }
 
@@ -123,7 +122,7 @@ pub fn eval_virial(distance: f64, lj_eps: f64, lj_sig: f64) -> f64 {
 #[test]
 fn test_eval_virial() {
     let dist = 1.5;
-    let result = eval_virial(dist, 1.0, 1.0, 0.0);
+    let result = eval_virial(dist, 1.0, 1.0);
     let expected = 1.1580288;
     assert!( (result - expected).abs() < 0.0001, "{}", result );
 }
