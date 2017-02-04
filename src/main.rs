@@ -197,7 +197,7 @@ fn main() {
         virial_sum += virial;
 
         // reset average sums for sampling
-        if step == eq_steps-1 {
+        if step == eq_steps {
             println_stderr!("");
             println_stderr!("################################################################");
             println_stderr!("##########################  Sampling  ##########################");
@@ -210,6 +210,15 @@ fn main() {
         }
 
         // Everything below here is not part of the metropolis sampling (extras)
+
+        // print some output during equilibration
+        if step < eq_steps && step_counter % EQUILIBRATION_OUTPUT_INTERVAL == 0 && step != 0 {
+            let tries_per_step : f64 = step_counter as f64 /accept_counter as f64;
+            let acceptance_rate = 1.0/tries_per_step * 100.0;
+            let avg_energy = energy_sum / step_counter as f64;
+            let avg_virial = virial_sum / step_counter as f64;
+            println_stderr!("Eq {:<10} Energy: {:<30.3} Virial: {:<30.3} Accept.: {:<4.1}%   dr: {:.3}", step, avg_energy, avg_virial, acceptance_rate, displacement);
+        }
 
         // displacement scaling during equilibration for good acceptance ratios
         if SCALE && step < eq_steps && step % SCALE_INTERVAL == 0 {
@@ -225,15 +234,6 @@ fn main() {
             step_counter = 0;
             accept_counter = 0;
             energy_sum = 0.0;
-        }
-
-        // print some output during equilibration
-        if step < eq_steps && step_counter % EQUILIBRATION_OUTPUT_INTERVAL == 0 && step != 0 {
-            let tries_per_step : f64 = step_counter as f64 /accept_counter as f64;
-            let acceptance_rate = 1.0/tries_per_step * 100.0;
-            let avg_energy = energy_sum / step_counter as f64;
-            let avg_virial = virial_sum / step_counter as f64;
-            println_stderr!("Eq {:<10} Energy: {:<30.3} Virial: {:<30.3} Accept.: {:<4.1}%   dr: {:.3}", step+1, avg_energy, avg_virial, acceptance_rate, displacement);
         }
 
         // print some output during sampling
