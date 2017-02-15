@@ -47,12 +47,14 @@ fn main() {
 
     // open file and skip to requested position
     let mut trj_reader = TrjReader::new(&filename);
-    if skip > 0 { trj_reader.skip(skip) };
+    if skip > 0 {
+        println!("Skipping {} frames.", skip);
+        trj_reader.skip(skip);
+        println!("Done.");
+    };
 
     // Get first frame and read system configuration
     let mut frame = trj_reader.next_frame();
-    println!("{:?}", frame);
-
     let volume = frame.box_x * frame.box_y * frame.box_z;
     let beta = 1.0/frame.temperature;
     let cutoff_sqr = frame.lj_cutoff * frame.lj_cutoff;
@@ -71,6 +73,10 @@ fn main() {
     // LJ shift
     let e_shift = if shift { 4.0 * LJ_EPS * ( (LJ_SIG/frame.lj_cutoff).powi(12) - (LJ_SIG/frame.lj_cutoff).powi(6) ) } else { 0.0 };
 
+    println!("Calculating chemical potential for the following system:");
+    println!("Particles: {}, Volume: {:.2}, Temperature: {:.2}, Density: {:.2}, Shift? {}", frame.num_particles, volume, frame.temperature, frame.num_particles as f64 / volume, shift);
+    println!("Liquid phase boundaries: {:2} - {:2}", liquid_start, liquid_end);
+    println!("Doing {} insertions per frame per phase.", insertions);
 
     // average counters
     let mut frame_count = 0;

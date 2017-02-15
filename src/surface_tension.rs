@@ -38,14 +38,15 @@ fn main() {
     let box_half_y = frame.box_y / 2.0;
     let box_half_z = frame.box_z / 2.0;
 
-    let mut frame_count = 0;
-    let mut p_xy_sum = 0.0;
-    let mut p_z_sum = 0.0;
 
     let variable_without_name = frame.temperature/LJ_EPS * density;
 
     println!("Calculating surface tension");
     println!("~~~ THIS IS A RUNNING AVERAGE! ~~~");
+    let mut trace_xy_sum = 0.0;
+    let mut trace_z_sum = 0.0;
+    let mut frame_count = 0;
+
     loop {
         frame_count += 1;
 
@@ -64,23 +65,17 @@ fn main() {
                 trace_z += (dz * dz) / dist * virial;
             }
         }
-        let p_xy = variable_without_name - 1.0/(2.0*volume)*(trace_xy);
-        let p_zz = variable_without_name - 1.0/volume*(trace_z);
-
-        p_xy_sum += p_xy;
-        p_z_sum += p_zz;
+        trace_xy_sum += trace_xy;
+        trace_z_sum += trace_z;
 
         ///////////////////////////////////
         if frame_count % AVG_OUTPUT_INTERVAL == 0 {
-            let p_z_avg = p_z_sum / frame_count as f64;
-            let p_xy_avg = p_xy_sum / frame_count as f64;
-            let p_diff = p_z_avg - p_xy_avg;
-            let surface_tension = eval_surface_tension(frame.box_z, p_z_avg, p_xy_avg);
-            println!("Frame {}\t\tzz: {:.5}\txy: {:.5}\tdifference: {:.5}\t\ttension: {:.5}", frame_count, p_z_avg, p_xy_avg, p_diff, surface_tension);
+            let p_z_avg = variable_without_name - 1.0/volume*(trace_z_sum/frame_count as f64);
+            let p_xy_avg = variable_without_name - 1.0/2.0/volume*(trace_xy_sum/frame_count as f64);
 
-            // frame_count = 0;
-            // p_z_sum = 0.0;
-            // p_xy_sum = 0.0;
+            let surface_tension = eval_surface_tension(frame.box_z, p_z_avg, p_xy_avg);
+            println!("Frame {}\t\tzz: {:.5}\txy: {:.5}\t\ttension: {:.5}", frame_count, p_z_avg, p_xy_avg, surface_tension);
+
         }
 
         // read next frame

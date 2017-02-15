@@ -25,20 +25,20 @@ fn main() {
     println!("# Skipping {} frames.", skip_frames);
     trj_reader.skip(skip_frames);
     let mut frame = trj_reader.next_frame();
+    println!("# Done.");
 
     let slab_height = frame.box_z / slabs as f64;
     let slab_volume = slab_height * frame.box_x * frame.box_y;
-    println!("# Density calculation with {} slabs (height={})", slabs, slab_height);
+    println!("# Density calculation with {} slabs (height={}, volume={})", slabs, slab_height, slab_volume);
 
-    let mut slab_particles : Vec<f64> = vec![0.0; slabs];
+    let mut slab_particles_sum : Vec<f64> = vec![0.0; slabs];
     let mut frame_count : usize = 0;
-
-    // loop over frames
     loop  {
         frame_count += 1;
+
         for i in 0..frame.num_particles {
-            let slab_no : usize = get_slab_number_for_position(frame.rz[i], slab_height) - 1;
-            slab_particles[slab_no] += 1.0;
+            let slab_no : usize = get_slab_number_for_position(frame.rz[i], slab_height);
+            slab_particles_sum[slab_no-1] += 1.0;
         }
 
         if !trj_reader.update_with_next(&mut frame) {
@@ -47,13 +47,13 @@ fn main() {
     }
 
     println!("# Averaged over {} frames", frame_count);
-    println!("# Position    Density");
-    for i in 0..slab_particles.len() {
-        let p_max = slab_height * (i as f64 + 1.0);
-        let position =(p_max + p_max-slab_height) / 2.0;
-        let particles = slab_particles[i] / frame_count as f64;
-        let density = particles / slab_volume;
-        println!("{}\t{}\t{}", position, density, particles);
+    println!("# Position    Density    Particles");
+    for i in 0..slabs {
+        let position = (i as f64 * slab_height + (i as f64 * slab_height + slab_height) ) / 2.0; // middle of the slab
+        let particles = slab_particles_sum[i];
+        let particles_avg = particles/frame_count as f64;
+        let slab_density = particles_avg / slab_volume;
+        println!("{}\t{}\t{}", position, slab_density, particles_avg);
     }
 
 }
