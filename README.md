@@ -15,29 +15,7 @@ The compiled binary can then be found in ```target/release.```
 Source: Ge J. et ak., Scaling behavior for a pressure and energy of shearing fluids. Phys Rev 061201, p. 67-68, 2003
 
 
-# Results
-Some results obtained during the creation of this project
-
 ## Function of State
 Function of state at different temperatures. 512 particles were simulated with applied potential shift and tailcorrection. Displacement scaled to have 33% acceptance rate during 1mio steps. Averages over 100k steps.
-![Function of state](results/FoS/FoS.png)  
+![Function of state](FoS.png)  
 
-![Minimization](results/energy_minimization/energy_minimization.png)
-Energy minimization for a box of 2048 particles at T=0.9 and Density=0.7
-
-## Coexisting liquid/vapor phases
-**2048 particles** were inserted into a box at **T=1.0** and **density=0.85** (**Dimensions 13.406/13.406/40.218**), **no tailcorrection, cutoff 2.5**. The particles filled 1/3 of the box with vacuum space above and below the liquid slab. Finally, a simulation was run for **50000+5000 Cycles** (each 2048 steps) writing a frame every cycle.
-
-Density profile avg. over the last 5000 cycles.
-![Density profile](results/coexisting/density_z.png)
-
-
-Chemical potential over all 55000 cycles. z=11.07 and z=27.57 were chosen as liquid boundaries. For every frame, 100 particles insertions per phase were performed.
-![Chemical potential](results/coexisting/chem_pot.png)
-
-Surface tension: Running average over the last 5000 Cycles.  
-P_zz: -0.05981  
-P_xy: -0.06715  
-Tension: 0.14756  
-**TODO shift virial**  
-**TODO Large sampling is required here. Tension has lots of ups and downs over the 5000 steps (.1 to .25). Increase number of steps to get a better average.**
